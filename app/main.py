@@ -46,13 +46,13 @@ def get_gis():
         _gis = GIS("https://dinamica.maps.arcgis.com", arcgis_user, arcgis_password)
     return _gis
 
-@router.get("/api/test")
+@app.get("/api/test")
 async def test_endpoint():
     return {"message": "Hola, ¡el backend sße actualizó correctamente!"}
 print("Current App Name:", firebase_admin.get_app().project_id)
 
 
-@router.get("/api/arcgis-token")
+@app.get("/api/arcgis-token")
 async def get_arcgis_token():
     try:
         gis_instance = get_gis()
