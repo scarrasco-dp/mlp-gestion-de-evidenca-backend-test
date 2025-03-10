@@ -4,7 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from arcgis.gis import GIS
 from arcgis.geometry import Point
+
 import firebase_admin
+import uvicorn
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import io
@@ -120,7 +122,6 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
 
     dfResumen = dfI[['iniciativa', 'llave', 'ano', 'familia_iniciativa', 'tipo_iniciativa',
                      'localidad', 'fase', 'estado', 'costo_total_usd', 'FCT', 'SOLPED']]
-
     def delta(sub_df):
         sub_df = sub_df[sub_df['linea_gestion'] == "Físico"]
         sum_pesos = sub_df['peso'].sum()
