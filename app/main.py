@@ -1,7 +1,8 @@
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
-from .app_config import get_firebase_user_from_token
+from app_config import get_firebase_user_from_token
+
 
 from arcgis.gis import GIS
 from arcgis.geometry import Point
@@ -45,7 +46,7 @@ def get_gis():
         _gis = GIS("https://dinamica.maps.arcgis.com", arcgis_user, arcgis_password)
     return _gis
 
-@routerß.get("/api/test")
+@router.get("/api/test")
 async def test_endpoint():
     return {"message": "Hola, ¡el backend sße actualizó correctamente!"}
 print("Current App Name:", firebase_admin.get_app().project_id)

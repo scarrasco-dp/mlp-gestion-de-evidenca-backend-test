@@ -16,4 +16,4 @@ RUN python -c "import imghdr; print('imghdr importado correctamente')"
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "echo 'Starting app on port:' ${PORT:-8000} && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "echo 'Starting app on port:' ${PORT:-8000} && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
