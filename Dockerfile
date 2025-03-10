@@ -7,7 +7,7 @@ ENV FRONTEND_URL="*"
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY .env .
+#COPY .env .
 
 COPY ./app /app
 
