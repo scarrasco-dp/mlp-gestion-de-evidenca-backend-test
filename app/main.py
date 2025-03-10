@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, UploadFile, Depends, HTTPException
+from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from .app_config import get_firebase_user_from_token
 
 from arcgis.gis import GIS
 from arcgis.geometry import Point
@@ -16,11 +17,10 @@ import pandas as pd
 import requests
 import holidays
 
-from config import get_firebase_user_from_token
 
 
 app = FastAPI()
-
+router = APIRouter() 
 load_dotenv(".env")
 origins = [os.getenv("FRONTEND_URL", "*")]
 app.add_middleware(
@@ -36,7 +36,7 @@ firebase_admin.initialize_app()
 load_dotenv(".env")
 
 arcgis_user = os.getenv("ARCGIS_USER", "invitado@dp.com")
-arcgis_password = os.getenv("ARCGIS_PASSWORD", "qwerty123")
+arcgis_password = os.getenv("ARCGIS_PASSWORD", "qwerty.123")
 
 gis = GIS("https://dinamica.maps.arcgis.com", arcgis_user, arcgis_password)
 
@@ -44,6 +44,7 @@ gis = GIS("https://dinamica.maps.arcgis.com", arcgis_user, arcgis_password)
 async def test_endpoint():
     return {"message": "Hola, ¡el backend sße actualizó correctamente!"}
 print("Current App Name:", firebase_admin.get_app().project_id)
+
 
 @router.get("/api/arcgis-token")
 async def get_arcgis_token():
