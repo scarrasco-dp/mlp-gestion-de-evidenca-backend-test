@@ -10,3 +10,4 @@ beautifulsoup4==4.12.3
 holidays==0.49
 python-dotenv==1.0.1
 keyring==21.8.0
+urllib3<2

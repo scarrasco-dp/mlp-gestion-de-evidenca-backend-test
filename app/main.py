@@ -100,7 +100,7 @@ def df_to_features(df):
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello frofgfdm FastAPI"}
+    return {"message": "Hello World FastAPI"}
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
