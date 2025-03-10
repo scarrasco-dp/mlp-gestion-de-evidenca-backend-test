@@ -95,7 +95,7 @@ def df_to_features(df):
 
 @app.get("/")
 async def read_root():
-    return {"Hello": "World"}
+    return {"Hello": "World pls funciona"}
 
 
 @app.post("/")
