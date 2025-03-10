@@ -45,7 +45,7 @@ def get_gis():
         _gis = GIS("https://dinamica.maps.arcgis.com", arcgis_user, arcgis_password)
     return _gis
 
-@router.get("/api/test")
+@routerß.get("/api/test")
 async def test_endpoint():
     return {"message": "Hola, ¡el backend sße actualizó correctamente!"}
 print("Current App Name:", firebase_admin.get_app().project_id)
@@ -99,7 +99,7 @@ def df_to_features(df):
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI"}
+    return {"message": "Hello frofgfdm FastAPI"}
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
