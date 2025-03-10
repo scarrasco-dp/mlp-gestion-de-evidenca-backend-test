@@ -35,10 +35,15 @@ firebase_admin.initialize_app()
 
 load_dotenv(".env")
 
-arcgis_user = os.getenv("ARCGIS_USER", "invitado@dp.com")
-arcgis_password = os.getenv("ARCGIS_PASSWORD", "qwerty.123")
+_gis = None
 
-gis = GIS("https://dinamica.maps.arcgis.com", arcgis_user, arcgis_password)
+def get_gis():
+    global _gis
+    if _gis is None:
+        arcgis_user = os.getenv("ARCGIS_USER", "invitado@dp.com")
+        arcgis_password = os.getenv("ARCGIS_PASSWORD", "qwerty123")
+        _gis = GIS("https://dinamica.maps.arcgis.com", arcgis_user, arcgis_password)
+    return _gis
 
 @router.get("/api/test")
 async def test_endpoint():
@@ -49,7 +54,8 @@ print("Current App Name:", firebase_admin.get_app().project_id)
 @router.get("/api/arcgis-token")
 async def get_arcgis_token():
     try:
-        return {"token": gis._con.token}
+        gis_instance = get_gis()
+        return {"token": gis_instance._con.token}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
