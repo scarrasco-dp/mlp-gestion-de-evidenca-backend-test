@@ -4,9 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from arcgis.gis import GIS
 from arcgis.geometry import Point
-
 import firebase_admin
-
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import io
