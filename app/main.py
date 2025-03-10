@@ -18,8 +18,6 @@ import pandas as pd
 import requests
 import holidays
 
-
-
 app = FastAPI()
 router = APIRouter() 
 load_dotenv(".env")
