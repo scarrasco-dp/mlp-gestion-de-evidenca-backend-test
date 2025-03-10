@@ -33,19 +33,16 @@ app.add_middleware(
 
 firebase_admin.initialize_app()
 
-# Cargar variables de entorno (útil en desarrollo)
 load_dotenv(".env")
 
-# Leer credenciales de entorno o usar valores fijos en desarrollo
 arcgis_user = os.getenv("ARCGIS_USER", "invitado@dp.com")
 arcgis_password = os.getenv("ARCGIS_PASSWORD", "qwerty123")
 
-# Autenticación en ArcGIS
 gis = GIS("https://dinamica.maps.arcgis.com", arcgis_user, arcgis_password)
 
 @router.get("/api/test")
 async def test_endpoint():
-    return {"message": "Hola, ¡el backend se actualizó correctamente!"}
+    return {"message": "Hola, ¡el backend sße actualizó correctamente!"}
 print("Current App Name:", firebase_admin.get_app().project_id)
 
 @router.get("/api/arcgis-token")
@@ -94,9 +91,12 @@ def df_to_features(df):
 
 
 @app.get("/")
-async def read_root():
-    return {"Hello": "World pls funciona"}
+def read_root():
+    return {"message": "Hello from FastAPI"}
 
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 @app.post("/")
 async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_from_token)):
