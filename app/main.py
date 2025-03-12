@@ -24,7 +24,7 @@ load_dotenv(".env")
 origins = [os.getenv("FRONTEND_URL", "*")]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["https://dev-mlp-gestion-de-evidencia-preview.vercel.app/"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
