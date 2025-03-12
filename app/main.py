@@ -1,6 +1,8 @@
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from app_config import get_firebase_user_from_token
+
 
 from arcgis.gis import GIS
 from arcgis.geometry import Point
@@ -16,11 +18,8 @@ import pandas as pd
 import requests
 import holidays
 
-from config import get_firebase_user_from_token
-
-
 app = FastAPI()
-
+router = APIRouter() 
 load_dotenv(".env")
 origins = [os.getenv("FRONTEND_URL", "*")]
 app.add_middleware(
@@ -30,29 +29,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-router = APIRouter()
 
 firebase_admin.initialize_app()
+
 load_dotenv(".env")
-# Cargar la API key desde el entorno (puedes definirla en tu .env)
+
 arcgis_api_key = os.getenv("ARCGIS_API_KEY", "TU_API_KEY_POR_DEFECTO")
 
-# Autenticación en ArcGIS usando la API key
 gis = GIS("https://dinamica.maps.arcgis.com", api_key=arcgis_api_key)
 
-
-@router.get("/api/test")
+@app.get("/api/test")
 async def test_endpoint():
-    return {"message": "Hola, ¡el backend se actualizó correctamente!"}
+    return {"message": "Hola, ¡el backend sße actualizó correctamente!"}
 print("Current App Name:", firebase_admin.get_app().project_id)
 
-@router.get("/api/arcgis-api-key")
+
+@app.get("/api/arcgis-api-key")
 async def get_arcgis_api_key():
     if not arcgis_api_key:
         raise HTTPException(status_code=500, detail="API key not configured")
     return {"token": arcgis_api_key}
-
-app.include_router(router)
 
 def df_to_features(df):
     features_to_be_added = []
@@ -93,9 +89,12 @@ def df_to_features(df):
 
 
 @app.get("/")
-async def read_root():
-    return {"Hello": "World pls funciona"}
+def read_root():
+    return {"message": "Hello World FastAPI"}
 
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 @app.post("/")
 async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_from_token)):
