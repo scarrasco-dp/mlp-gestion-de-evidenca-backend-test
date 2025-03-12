@@ -35,16 +35,18 @@ firebase_admin.initialize_app()
 load_dotenv(".env")
 
 arcgis_api_key = os.getenv("ARCGIS_API_KEY", "TU_API_KEY_POR_DEFECTO")
-
+#arcgis_user = os.getenv("ARCGIS_USER", "invitado@dp.com")
+#arcgis_password = os.getenv("ARCGIS_PASSWORD", "qwerty123")
+# Autenticación en ArcGIS usando la API key
 gis = GIS("https://dinamica.maps.arcgis.com", api_key=arcgis_api_key)
 
-@app.get("/api/test")
+
+@router.get("/api/test")
 async def test_endpoint():
-    return {"message": "Hola, ¡el backend sße actualizó correctamente!"}
+    return {"message": "Hola, ¡el backend se actualizó correctamente!"}
 print("Current App Name:", firebase_admin.get_app().project_id)
 
-
-@app.get("/api/arcgis-api-key")
+@router.get("/api/arcgis-api-key")
 async def get_arcgis_api_key():
     if not arcgis_api_key:
         raise HTTPException(status_code=500, detail="API key not configured")
@@ -100,7 +102,7 @@ if __name__ == "__main__":
 async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_from_token)):
     today = datetime.today()
 
-    gis = GIS("https://dinamica.maps.arcgis.com", arcgis_user, arcgis_password)
+    gis = GIS("https://dinamica.maps.arcgis.com", api_key=arcgis_api_key)
 
     contents = io.BytesIO(await file.read())
     dfI = pd.read_excel(contents, sheet_name="aapp_amsa_1_iniciativas")
