@@ -41,12 +41,12 @@ arcgis_api_key = os.getenv("ARCGIS_API_KEY", "AAPKef6a6270c0444f1bab85f16198b86c
 gis = GIS("https://www.arcgis.com", api_key=arcgis_api_key)
 
 
-@router.get("/api/test")
+@app.get("/api/test")
 async def test_endpoint():
     return {"message": "Hola, ¡el backend se actualizó correctamente!"}
 print("Current App Name:", firebase_admin.get_app().project_id)
 
-@router.get("/api/arcgis-api-key")
+@app.get("/api/arcgis-api-key")
 async def get_arcgis_api_key():
     if not arcgis_api_key:
         raise HTTPException(status_code=500, detail="API key not configured")
