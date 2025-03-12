@@ -34,11 +34,11 @@ firebase_admin.initialize_app()
 
 load_dotenv(".env")
 
-arcgis_api_key = os.getenv("ARCGIS_API_KEY", "TU_API_KEY_POR_DEFECTO")
+arcgis_api_key = os.getenv("ARCGIS_API_KEY", "AAPKef6a6270c0444f1bab85f16198b86cdezONnSZRAUOZ2g96jnpC290w0opK67lz0EBmlZsLw9vNbO_XbIKw2FxaKrjPvPZI5")
 #arcgis_user = os.getenv("ARCGIS_USER", "invitado@dp.com")
 #arcgis_password = os.getenv("ARCGIS_PASSWORD", "qwerty123")
 # Autenticación en ArcGIS usando la API key
-gis = GIS("https://dinamica.maps.arcgis.com", api_key=arcgis_api_key)
+gis = GIS("https://www.arcgis.com", api_key=arcgis_api_key)
 
 
 @router.get("/api/test")
@@ -102,7 +102,7 @@ if __name__ == "__main__":
 async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_from_token)):
     today = datetime.today()
 
-    gis = GIS("https://dinamica.maps.arcgis.com", api_key=arcgis_api_key)
+    gis = GIS("https://www.arcgis.com", api_key=arcgis_api_key)
 
     contents = io.BytesIO(await file.read())
     dfI = pd.read_excel(contents, sheet_name="aapp_amsa_1_iniciativas")
