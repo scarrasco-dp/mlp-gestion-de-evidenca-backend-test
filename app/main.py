@@ -31,8 +31,8 @@ firebase_admin.initialize_app()
 load_dotenv(".env")
 
 # Configuración para OAuth 2.0 Client Credentials
-CLIENT_ID = os.getenv("ARCGIS_CLIENT_ID", "TU_CLIENT_ID")
-CLIENT_SECRET = os.getenv("ARCGIS_CLIENT_SECRET", "TU_CLIENT_SECRET")
+CLIENT_ID = os.getenv("ARCGIS_CLIENT_ID", "YaPnrAFP4tvZogSu")
+CLIENT_SECRET = os.getenv("ARCGIS_CLIENT_SECRET", "f2d55ee0da364a6fa984c3ce31ba5a05")
 TARGET_URL = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/"
 
 def get_access_token():
