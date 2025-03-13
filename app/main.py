@@ -1,9 +1,6 @@
-from bs4 import BeautifulSoup
 from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app_config import get_firebase_user_from_token
-
-
 from arcgis.gis import GIS
 from arcgis.geometry import Point
 
@@ -31,48 +28,49 @@ app.add_middleware(
 )
 
 firebase_admin.initialize_app()
-
 load_dotenv(".env")
 
-arcgis_api_key = os.getenv("ARCGIS_API_KEY", "AAPKef6a6270c0444f1bab85f16198b86cdezONnSZRAUOZ2g96jnpC290w0opK67lz0EBmlZsLw9vNbO_XbIKw2FxaKrjPvPZI5")
-#arcgis_user = os.getenv("ARCGIS_USER", "invitado@dp.com")
-#arcgis_password = os.getenv("ARCGIS_PASSWORD", "qwerty123")
-# Autenticación en ArcGIS usando la API key
-gis = GIS("https://www.arcgis.com", api_key=arcgis_api_key)
-
-
-@app.get("/api/test")
-async def test_endpoint():
-    return {"message": "Hola, ¡el backend se actualizó correctamente!"}
-print("Current App Name:", firebase_admin.get_app().project_id)
-
-# @app.get("/api/arcgis-api-key")
-# async def get_arcgis_api_key():
-#     if not arcgis_api_key:
-#         raise HTTPException(status_code=500, detail="API key not configured")
-#     response.headers["X-Custom-Header"] = "AAPKef6a6270c0444f1bab85f16198b86cdezONnSZRAUOZ2g96jnpC290w0opK67lz0EBmlZsLw9vNbO_XbIKw2FxaKrjPvPZI5"
-#     return {"token": arcgis_api_key}
-
-API_KEY = os.getenv("ARCGIS_API_KEY", "AAPKef6a6270c0444f1bab85f16198b86cdezONnSZRAUOZ2g96jnpC290w0opK67lz0EBmlZsLw9vNbO_XbIKw2FxaKrjPvPZI5")
+# Configuración para OAuth 2.0 Client Credentials
+CLIENT_ID = os.getenv("ARCGIS_CLIENT_ID", "TU_CLIENT_ID")
+CLIENT_SECRET = os.getenv("ARCGIS_CLIENT_SECRET", "TU_CLIENT_SECRET")
 TARGET_URL = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/"
+
+def get_access_token():
+    token_url = "https://www.arcgis.com/sharing/rest/oauth2/token"
+    params = {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "grant_type": "client_credentials",  # Indica el flujo Client Credentials
+        "f": "json"
+    }
+    response = requests.post(token_url, data=params)
+    if response.ok:
+        token_data = response.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise Exception("Token de acceso no recibido")
+        return access_token
+    else:
+        raise Exception("Error al obtener el token de acceso")
 
 @app.get("/proxy/arcgis")
 async def proxy_arcgis(response: Response):
-    # Headers necesarios para la solicitud al experience
-    request_headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        # Agrega otros headers si es necesario
-    }
-    # Realiza la solicitud a la URL destino con los headers
-    r = requests.get(TARGET_URL, headers=request_headers)
+    try:
+        access_token = get_access_token()  # Obtenemos el token automáticamente
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener token: {e}")
     
+    # Usamos el token en el header para autenticar la solicitud
+    request_headers = {
+        "Authorization": f"Bearer {access_token}",
+    }
+    r = requests.get(TARGET_URL, headers=request_headers)
     if not r.ok:
         raise HTTPException(status_code=r.status_code, detail="Error al solicitar el experience")
     
-    # Devuelve la respuesta con el contenido y el Content-Type original
     return Response(content=r.content, media_type=r.headers.get("Content-Type"))
 
-
+# El resto de tu código se mantiene igual...
 def df_to_features(df):
     features_to_be_added = []
     for row in df.iterrows():
@@ -91,8 +89,7 @@ def df_to_features(df):
         if (str(data['fase']) != "nan"):
             attributes['fase'] = data['fase']
         if (str(data['costo_total_usd']) != "nan"):
-            attributes['costo_total_usd'] = float(
-                data['costo_total_usd'].replace(",", "."))
+            attributes['costo_total_usd'] = float(data['costo_total_usd'].replace(",", "."))
         if (str(data['FCT']) != "nan"):
             attributes['FCT'] = data['FCT']
         if (str(data['SOLPED']) != "nan"):
@@ -109,7 +106,6 @@ def df_to_features(df):
         features_to_be_added.append(new_feature)
 
     return features_to_be_added
-
 
 @app.get("/")
 def read_root():
@@ -134,8 +130,7 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
     dfH['fecha_plan'] = pd.to_datetime(dfH['fecha_plan'])
     dfH['fecha_real'] = pd.to_datetime(dfH['fecha_real'])
     dfH['cumplimiento_plan'] = (dfH['fecha_plan'] < today)
-    dfH['cumplimiento_real'] = (dfH['fecha_real'] < today) & (
-        dfH['estado_avance'] == "COMPLETADO")
+    dfH['cumplimiento_real'] = (dfH['fecha_real'] < today) & (dfH['estado_avance'] == "COMPLETADO")
 
     dfI = dfI[(dfI['gerencia'] == "Minera Los Pelambres") &
               (dfI['esponsor'] == "GAAPP GMLP") & (dfI['estado'] != "ELIMINADO")]
@@ -147,15 +142,13 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
         sub_df = sub_df[sub_df['linea_gestion'] == "Físico"]
         sum_pesos = sub_df['peso'].sum()
         if sum_pesos > 0:
-            plan = (sub_df['peso'] * sub_df['cumplimiento_plan']
-                    ).sum() / sum_pesos
+            plan = (sub_df['peso'] * sub_df['cumplimiento_plan']).sum() / sum_pesos
         else:
             plan = 0
 
         sum_reales = sub_df['peso_ac'].sum()
         if sum_reales > 0:
-            real = (sub_df['peso_ac'] * sub_df['cumplimiento_real']
-                    ).sum() / sum_reales
+            real = (sub_df['peso_ac'] * sub_df['cumplimiento_real']).sum() / sum_reales
         else:
             real = 0
         return abs(plan - real)
@@ -169,10 +162,8 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
     with open('localitiesY.json', 'r') as f:
         dictLocalitiesY = json.loads(f.read())
 
-    dfResumen.insert(len(dfResumen.columns), 'Coor_x',
-                     dfResumen['localidad'].map(dictLocalitiesX))
-    dfResumen.insert(len(dfResumen.columns), 'Coor_y',
-                     dfResumen['localidad'].map(dictLocalitiesY))
+    dfResumen.insert(len(dfResumen.columns), 'Coor_x', dfResumen['localidad'].map(dictLocalitiesX))
+    dfResumen.insert(len(dfResumen.columns), 'Coor_y', dfResumen['localidad'].map(dictLocalitiesY))
 
     # Save initiatives without coords
     dfResumenNoGeo = dfResumen[dfResumen['Coor_x'].isna()]
@@ -196,16 +187,13 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
 
     return 'ok'
 
-
 chilean_holidays = holidays.CL()
-
 
 def get_previous_business_day(date):
     previous_date = date - timedelta(days=1)
     while (previous_date.weekday() >= 5) or (previous_date in chilean_holidays):
         previous_date -= timedelta(days=1)
     return previous_date
-
 
 @app.get("/currencies")
 def get_currencies(year: int = None):
@@ -229,12 +217,9 @@ def get_currencies(year: int = None):
             response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        usd = float(soup.find("label", {"id": "lblValor1_3"}).text.replace(
-            ".", "").replace(",", "."))
-        eur = float(soup.find("label", {"id": "lblValor1_5"}).text.replace(
-            ".", "").replace(",", "."))
-        uf = float(soup.find("label", {"id": "lblValor1_5"}).text.replace(
-            ".", "").replace(",", "."))
+        usd = float(soup.find("label", {"id": "lblValor1_3"}).text.replace(".", "").replace(",", "."))
+        eur = float(soup.find("label", {"id": "lblValor1_5"}).text.replace(".", "").replace(",", "."))
+        uf = float(soup.find("label", {"id": "lblValor1_5"}).text.replace(".", "").replace(",", "."))
 
         return {"CLP": 1, "USD": usd, "EUR": eur, "UF": uf}
     except Exception as _:
