@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter
+from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter, response
 from fastapi.middleware.cors import CORSMiddleware
 from app_config import get_firebase_user_from_token
 
@@ -46,11 +46,37 @@ async def test_endpoint():
     return {"message": "Hola, ¡el backend se actualizó correctamente!"}
 print("Current App Name:", firebase_admin.get_app().project_id)
 
-@app.get("/api/arcgis-api-key")
-async def get_arcgis_api_key():
-    if not arcgis_api_key:
-        raise HTTPException(status_code=500, detail="API key not configured")
-    return {"token": arcgis_api_key}
+# @app.get("/api/arcgis-api-key")
+# async def get_arcgis_api_key():
+#     if not arcgis_api_key:
+#         raise HTTPException(status_code=500, detail="API key not configured")
+#     response.headers["X-Custom-Header"] = "AAPKef6a6270c0444f1bab85f16198b86cdezONnSZRAUOZ2g96jnpC290w0opK67lz0EBmlZsLw9vNbO_XbIKw2FxaKrjPvPZI5"
+#     return {"token": arcgis_api_key}
+
+# Configura tu API key y la URL destino
+API_KEY = os.getenv("ARCGIS_API_KEY", "tu_api_key")
+TARGET_URL = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/"
+
+@app.get("/proxy/arcgis")
+async def proxy_arcgis():
+    # Define los headers que deseas agregar
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        # Puedes agregar otros headers personalizados aquí
+    }
+    # Si necesitas parámetros en la URL, también los defines:
+    params = {
+        "f": "json"  # ejemplo, ajusta según lo que requiera la API
+    }
+
+    # Realiza la solicitud a la URL destino con headers y parámetros
+    response = requests.get(TARGET_URL, headers=headers, params=params)
+
+    if not response.ok:
+        raise HTTPException(status_code=response.status_code, detail="Error al solicitar la URL destino")
+
+    # Retorna la respuesta al front, manteniendo el Content-Type original
+    return Response(content=response.content, media_type=response.headers.get("Content-Type"))
 
 def df_to_features(df):
     features_to_be_added = []
