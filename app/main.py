@@ -53,7 +53,7 @@ print("Current App Name:", firebase_admin.get_app().project_id)
 #     response.headers["X-Custom-Header"] = "AAPKef6a6270c0444f1bab85f16198b86cdezONnSZRAUOZ2g96jnpC290w0opK67lz0EBmlZsLw9vNbO_XbIKw2FxaKrjPvPZI5"
 #     return {"token": arcgis_api_key}
 
-API_KEY = os.getenv("ARCGIS_API_KEY", "tu_api_key")
+API_KEY = os.getenv("ARCGIS_API_KEY", "AAPKef6a6270c0444f1bab85f16198b86cdezONnSZRAUOZ2g96jnpC290w0opK67lz0EBmlZsLw9vNbO_XbIKw2FxaKrjPvPZI5")
 TARGET_URL = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/"
 
 @app.get("/proxy/arcgis")
