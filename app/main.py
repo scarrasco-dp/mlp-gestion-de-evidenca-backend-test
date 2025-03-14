@@ -54,32 +54,14 @@ def get_access_token():
     else:
         raise Exception("Error al obtener el token de acceso")
 
-@app.get("/proxy/arcgis")
-async def proxy_arcgis(response: Response):
+@app.get("/arcgis/token")
+def arcgis_token():
     try:
-        access_token = get_access_token()  
+        token = get_access_token()
+        return {"access_token": token}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener token: {e}")
-    
-    request_headers = {
-        "Authorization": f"Bearer {access_token}",
-    }
-    r = requests.get(TARGET_URL, headers=request_headers)
-    if not r.ok:
-        raise HTTPException(status_code=r.status_code, detail="Error al solicitar el experience")
-    
-    content_type = r.headers.get("Content-Type", "")
-    if "text/html" in content_type.lower():
-        html_content = r.text
+        raise HTTPException(status_code=500, detail=str(e))
 
-        if not re.search(r"<base\s", html_content, flags=re.IGNORECASE):
-            html_content = re.sub(TARGET_URL, html_content, flags=re.IGNORECASE)
-        
-        html_content = re.sub(TARGET_URL, r'\1="https://experience.arcgis.com/', html_content)
-        
-        return Response(content=html_content, media_type=content_type)
-    else:
-        return Response(content=r.content, media_type=content_type)
 
 def df_to_features(df):
     features_to_be_added = []
