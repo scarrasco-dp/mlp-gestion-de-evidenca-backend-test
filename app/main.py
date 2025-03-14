@@ -61,7 +61,7 @@ async def proxy_arcgis(response: Response):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener token: {e}")
     
-    # Usamos el token para autenticar la solicitud
+    # Autenticamos la solicitud con el token
     request_headers = {
         "Authorization": f"Bearer {access_token}",
     }
@@ -73,18 +73,18 @@ async def proxy_arcgis(response: Response):
     if "text/html" in content_type.lower():
         html_content = r.text
 
-        # Inserta una etiqueta <base> en el <head> para forzar que las rutas relativas se resuelvan en ArcGIS
+        # Inserta una etiqueta <base> en el <head> para que las rutas relativas se resuelvan en ArcGIS
         if not re.search(r"<base\s", html_content, flags=re.IGNORECASE):
             html_content = re.sub(r'(<head[^>]*>)', r'\1<base href="https://experience.arcgis.com/">', html_content, flags=re.IGNORECASE)
         
-        # Reemplaza cualquier atributo href o src que empiece con "/" por una URL absoluta apuntando a ArcGIS
+        # Reescribe atributos href y src que comienzan con "/" para apuntar a ArcGIS
         html_content = re.sub(r'(href|src)=["\']\/', r'\1="https://experience.arcgis.com/', html_content)
         
         return Response(content=html_content, media_type=content_type)
     else:
         return Response(content=r.content, media_type=content_type)
 
-# El resto de tu código se mantiene igual...
+# Función para transformar DataFrame en features para ArcGIS
 def df_to_features(df):
     features_to_be_added = []
     for row in df.iterrows():
@@ -96,24 +96,24 @@ def df_to_features(df):
             'localidad': data['localidad'],
             'estado': data['estado'],
         }
-        if (str(data['familia_iniciativa']) != "nan"):
+        if str(data['familia_iniciativa']) != "nan":
             attributes['familia_iniciativa'] = data['familia_iniciativa']
-        if (str(data['tipo_iniciativa']) != "nan"):
+        if str(data['tipo_iniciativa']) != "nan":
             attributes['tipo_iniciativa'] = data['tipo_iniciativa']
-        if (str(data['fase']) != "nan"):
+        if str(data['fase']) != "nan":
             attributes['fase'] = data['fase']
-        if (str(data['costo_total_usd']) != "nan"):
+        if str(data['costo_total_usd']) != "nan":
             attributes['costo_total_usd'] = float(data['costo_total_usd'].replace(",", "."))
-        if (str(data['FCT']) != "nan"):
+        if str(data['FCT']) != "nan":
             attributes['FCT'] = data['FCT']
-        if (str(data['SOLPED']) != "nan"):
+        if str(data['SOLPED']) != "nan":
             attributes['SOLPED'] = data['SOLPED']
 
         new_feature = {
             "attributes": attributes
         }
 
-        if ('Coor_x' in data.index):
+        if 'Coor_x' in data.index:
             point = Point([data['Coor_x'], data['Coor_y']])
             new_feature['geometry'] = point
 
@@ -132,7 +132,8 @@ if __name__ == "__main__":
 @app.post("/")
 async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_from_token)):
     today = datetime.today()
-    gis = GIS("https://www.arcgis.com", api_key=arcgis_api_key)
+    # Se utiliza la API key (para otros endpoints) si es necesario
+    gis = GIS("https://www.arcgis.com", api_key=os.getenv("ARCGIS_API_KEY"))
     contents = io.BytesIO(await file.read())
     dfI = pd.read_excel(contents, sheet_name="aapp_amsa_1_iniciativas")
     dfH = pd.read_excel(contents, sheet_name="aapp_amsa_1_hitos")
@@ -150,6 +151,7 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
 
     dfResumen = dfI[['iniciativa', 'llave', 'ano', 'familia_iniciativa', 'tipo_iniciativa',
                      'localidad', 'fase', 'estado', 'costo_total_usd', 'FCT', 'SOLPED']]
+    
     def delta(sub_df):
         sub_df = sub_df[sub_df['linea_gestion'] == "Físico"]
         sum_pesos = sub_df['peso'].sum()
@@ -157,7 +159,6 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
             plan = (sub_df['peso'] * sub_df['cumplimiento_plan']).sum() / sum_pesos
         else:
             plan = 0
-
         sum_reales = sub_df['peso_ac'].sum()
         if sum_reales > 0:
             real = (sub_df['peso_ac'] * sub_df['cumplimiento_real']).sum() / sum_reales
@@ -177,18 +178,14 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
     dfResumen.insert(len(dfResumen.columns), 'Coor_x', dfResumen['localidad'].map(dictLocalitiesX))
     dfResumen.insert(len(dfResumen.columns), 'Coor_y', dfResumen['localidad'].map(dictLocalitiesY))
 
-    # Save initiatives without coords
     dfResumenNoGeo = dfResumen[dfResumen['Coor_x'].isna()]
-
-    # Save initiatives with coords to arcgis feature layer
     dfResumenGeo = dfResumen.dropna(subset=['Coor_x'])
     item = gis.content.get("d462a6d805354d62a37fc6210c75664d")
     feature_layer = item.layers[0]
     features_to_be_added = df_to_features(dfResumenGeo)
     feature_layer.delete_features(where="OBJECTID > 0")
     feature_layer.edit_features(adds=features_to_be_added)
-
-    # Save initiatives without coords to arcgis table
+    
     dfToTable = dfResumenNoGeo.drop(columns=['Coor_x', 'Coor_y'])
     dfToTable['localidad'] = dfToTable['localidad'].fillna("")
     item2 = gis.content.get("707ed0b1b4ac424b947f5d07a4b243d3")
@@ -215,7 +212,7 @@ def get_currencies(year: int = None):
     view_state = soup.find('input', {'id': '__VIEWSTATE'})['value']
 
     try:
-        if (year is not None):
+        if year is not None:
             yearDate = datetime(year, 1, 5)
             previousWeekDay = get_previous_business_day(yearDate)
             response = requests.post(
@@ -227,7 +224,6 @@ def get_currencies(year: int = None):
         else:
             response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
-
         usd = float(soup.find("label", {"id": "lblValor1_3"}).text.replace(".", "").replace(",", "."))
         eur = float(soup.find("label", {"id": "lblValor1_5"}).text.replace(".", "").replace(",", "."))
         uf = float(soup.find("label", {"id": "lblValor1_5"}).text.replace(".", "").replace(",", "."))
