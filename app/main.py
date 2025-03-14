@@ -14,6 +14,7 @@ import os
 import pandas as pd
 import requests
 import holidays
+import re
 
 app = FastAPI()
 router = APIRouter() 
@@ -68,7 +69,16 @@ async def proxy_arcgis(response: Response):
     if not r.ok:
         raise HTTPException(status_code=r.status_code, detail="Error al solicitar el experience")
     
-    return Response(content=r.content, media_type=r.headers.get("Content-Type"))
+    content_type = r.headers.get("Content-Type")
+    # Si es HTML, reescribimos las rutas relativas
+    if content_type and "text/html" in content_type.lower():
+        html_content = r.text
+        # Reemplaza los atributos href y src que comienzan con "/cdn/"
+        html_content = re.sub(r'(href=["\'])/cdn/', r'\1https://experience.arcgis.com/cdn/', html_content)
+        html_content = re.sub(r'(src=["\'])/cdn/', r'\1https://experience.arcgis.com/cdn/', html_content)
+        return Response(content=html_content, media_type=content_type)
+    else:
+        return Response(content=r.content, media_type=content_type)
 
 # El resto de tu código se mantiene igual...
 def df_to_features(df):
@@ -118,9 +128,7 @@ if __name__ == "__main__":
 @app.post("/")
 async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_from_token)):
     today = datetime.today()
-
     gis = GIS("https://www.arcgis.com", api_key=arcgis_api_key)
-
     contents = io.BytesIO(await file.read())
     dfI = pd.read_excel(contents, sheet_name="aapp_amsa_1_iniciativas")
     dfH = pd.read_excel(contents, sheet_name="aapp_amsa_1_hitos")
@@ -198,7 +206,6 @@ def get_previous_business_day(date):
 @app.get("/currencies")
 def get_currencies(year: int = None):
     url = "https://si3.bcentral.cl/Indicadoressiete/secure/IndicadoresDiarios.aspx?Idioma=es-CL"
-
     ini_response = requests.post(url)
     soup = BeautifulSoup(ini_response.text, 'html.parser')
     view_state = soup.find('input', {'id': '__VIEWSTATE'})['value']
@@ -220,7 +227,6 @@ def get_currencies(year: int = None):
         usd = float(soup.find("label", {"id": "lblValor1_3"}).text.replace(".", "").replace(",", "."))
         eur = float(soup.find("label", {"id": "lblValor1_5"}).text.replace(".", "").replace(",", "."))
         uf = float(soup.find("label", {"id": "lblValor1_5"}).text.replace(".", "").replace(",", "."))
-
         return {"CLP": 1, "USD": usd, "EUR": eur, "UF": uf}
     except Exception as _:
         return HTTPException(status_code=500, detail="Scraper failed")
