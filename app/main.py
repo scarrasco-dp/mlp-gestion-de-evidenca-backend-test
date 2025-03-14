@@ -73,24 +73,21 @@ if __name__ == "__main__":
 
 
 
-# Creamos una sesión global para mantener las cookies de autenticación.
+# Sesión global para mantener la autenticación
 session = requests.Session()
 
-# Función para iniciar sesión en la webapp de ArcGIS.
 def login_arcgis():
-    login_url = "https://experience.arcgis.com/login"  # AJUSTA esta URL según la API de login real
+    login_url = "https://experience.arcgis.com/login"  # AJUSTA esta URL según la API real
     payload = {
         "username": "invitado@dp.com",
         "password": "qwerty.123"
     }
-    # Realiza el POST para autenticarte.
     resp = session.post(login_url, data=payload)
     if resp.ok:
-        print("Login exitoso")
+        print("¡Login exitoso, la fiesta ya comenzó!")
     else:
         raise Exception("Error en el login: " + resp.text)
 
-# Ejecutar el login al iniciar el servidor.
 @app.on_event("startup")
 def startup_event():
     try:
@@ -98,14 +95,23 @@ def startup_event():
     except Exception as e:
         print(f"Error al iniciar sesión: {e}")
 
-
 @app.get("/map-proxy")
 def proxy_map():
     target_url = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/"
     try:
         r = session.get(target_url)
-        # Reenviamos el contenido y el content-type original.
-        return Response(content=r.content, media_type=r.headers.get("Content-Type", "text/html"))
+        content_type = r.headers.get("Content-Type", "text/html")
+        
+        # Si es HTML, inyectamos la etiqueta <base> para redirigir las rutas relativas
+        if "text/html" in content_type:
+            html = r.text
+            if "<head>" in html:
+                # Inyecta la etiqueta <base> justo después de <head>
+                base_tag = '<base href="https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/">'
+                html = html.replace("<head>", f"<head>{base_tag}", 1)
+            return Response(content=html, media_type="text/html")
+        else:
+            return Response(content=r.content, media_type=content_type)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
