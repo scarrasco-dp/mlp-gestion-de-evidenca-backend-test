@@ -41,7 +41,7 @@ def get_access_token():
     params = {
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
-        "grant_type": "client_credentials",  # Indica el flujo Client Credentials
+        "grant_type": "client_credentials",  # Flujo Client Credentials
         "f": "json"
     }
     response = requests.post(token_url, data=params)
@@ -61,7 +61,7 @@ async def proxy_arcgis(response: Response):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener token: {e}")
     
-    # Usamos el token en el header para autenticar la solicitud
+    # Usamos el token para autenticar la solicitud
     request_headers = {
         "Authorization": f"Bearer {access_token}",
     }
@@ -69,17 +69,16 @@ async def proxy_arcgis(response: Response):
     if not r.ok:
         raise HTTPException(status_code=r.status_code, detail="Error al solicitar el experience")
     
-    content_type = r.headers.get("Content-Type")
-    if content_type and "text/html" in content_type.lower():
+    content_type = r.headers.get("Content-Type", "")
+    if "text/html" in content_type.lower():
         html_content = r.text
 
-        # Inserta una etiqueta <base> para forzar que las rutas relativas se resuelvan desde https://experience.arcgis.com/
-        if "<base " not in html_content.lower():
+        # Inserta una etiqueta <base> en el <head> para forzar que las rutas relativas se resuelvan en ArcGIS
+        if not re.search(r"<base\s", html_content, flags=re.IGNORECASE):
             html_content = re.sub(r'(<head[^>]*>)', r'\1<base href="https://experience.arcgis.com/">', html_content, flags=re.IGNORECASE)
-
-        # Además, reescribe atributos href y src que empiezan con "/cdn/" para apuntar al dominio correcto
-        html_content = re.sub(r'(href=["\'])/cdn/', r'\1https://experience.arcgis.com/cdn/', html_content)
-        html_content = re.sub(r'(src=["\'])/cdn/', r'\1https://experience.arcgis.com/cdn/', html_content)
+        
+        # Reemplaza cualquier atributo href o src que empiece con "/" por una URL absoluta apuntando a ArcGIS
+        html_content = re.sub(r'(href|src)=["\']\/', r'\1="https://experience.arcgis.com/', html_content)
         
         return Response(content=html_content, media_type=content_type)
     else:
