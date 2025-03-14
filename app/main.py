@@ -16,6 +16,7 @@ import requests
 import holidays
 import re
 
+
 app = FastAPI()
 router = APIRouter() 
 load_dotenv(".env")
@@ -69,6 +70,45 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=port)
+
+
+
+# Creamos una sesión global para mantener las cookies de autenticación.
+session = requests.Session()
+
+# Función para iniciar sesión en la webapp de ArcGIS.
+def login_arcgis():
+    login_url = "https://experience.arcgis.com/login"  # AJUSTA esta URL según la API de login real
+    payload = {
+        "username": "invitado@dp.com",
+        "password": "qwerty.123"
+    }
+    # Realiza el POST para autenticarte.
+    resp = session.post(login_url, data=payload)
+    if resp.ok:
+        print("Login exitoso")
+    else:
+        raise Exception("Error en el login: " + resp.text)
+
+# Ejecutar el login al iniciar el servidor.
+@app.on_event("startup")
+def startup_event():
+    try:
+        login_arcgis()
+    except Exception as e:
+        print(f"Error al iniciar sesión: {e}")
+
+
+@app.get("/map-proxy")
+def proxy_map():
+    target_url = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/"
+    try:
+        r = session.get(target_url)
+        # Reenviamos el contenido y el content-type original.
+        return Response(content=r.content, media_type=r.headers.get("Content-Type", "text/html"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 def df_to_features(df):
     features_to_be_added = []
