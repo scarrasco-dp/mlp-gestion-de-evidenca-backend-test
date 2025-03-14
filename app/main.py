@@ -20,14 +20,18 @@ app = FastAPI()
 router = APIRouter() 
 load_dotenv(".env")
 origins = [os.getenv("FRONTEND_URL", "*")]
+origins = [
+    "https://dev-mlp-gestion-de-evidencia-preview.vercel.app",
+    "http://localhost:3000"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,  # Ahora incluye localhost
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 firebase_admin.initialize_app()
 load_dotenv(".env")
 
@@ -35,7 +39,6 @@ load_dotenv(".env")
 CLIENT_ID = os.getenv("ARCGIS_CLIENT_ID", "YaPnrAFP4tvZogSu")
 CLIENT_SECRET = os.getenv("ARCGIS_CLIENT_SECRET", "f2d55ee0da364a6fa984c3ce31ba5a05")
 TARGET_URL = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/"
-
 def get_access_token():
     token_url = "https://www.arcgis.com/sharing/rest/oauth2/token"
     params = {
@@ -62,6 +65,10 @@ def arcgis_token():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 def df_to_features(df):
     features_to_be_added = []
@@ -103,9 +110,6 @@ def df_to_features(df):
 def read_root():
     return {"message": "Hello World FastAPI"}
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 @app.post("/")
 async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_from_token)):
