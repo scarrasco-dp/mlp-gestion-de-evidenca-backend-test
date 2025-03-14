@@ -70,12 +70,17 @@ async def proxy_arcgis(response: Response):
         raise HTTPException(status_code=r.status_code, detail="Error al solicitar el experience")
     
     content_type = r.headers.get("Content-Type")
-    # Si es HTML, reescribimos las rutas relativas
     if content_type and "text/html" in content_type.lower():
         html_content = r.text
-        # Reemplaza los atributos href y src que comienzan con "/cdn/"
+
+        # Inserta una etiqueta <base> para forzar que las rutas relativas se resuelvan desde https://experience.arcgis.com/
+        if "<base " not in html_content.lower():
+            html_content = re.sub(r'(<head[^>]*>)', r'\1<base href="https://experience.arcgis.com/">', html_content, flags=re.IGNORECASE)
+
+        # Además, reescribe atributos href y src que empiezan con "/cdn/" para apuntar al dominio correcto
         html_content = re.sub(r'(href=["\'])/cdn/', r'\1https://experience.arcgis.com/cdn/', html_content)
         html_content = re.sub(r'(src=["\'])/cdn/', r'\1https://experience.arcgis.com/cdn/', html_content)
+        
         return Response(content=html_content, media_type=content_type)
     else:
         return Response(content=r.content, media_type=content_type)
