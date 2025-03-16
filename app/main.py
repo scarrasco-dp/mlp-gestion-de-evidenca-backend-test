@@ -18,6 +18,7 @@ import re
 
 
 app = FastAPI()
+router = APIRouter() 
 load_dotenv(".env")
 
 app.add_middleware(
@@ -28,11 +29,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi import FastAPI, Request, HTTPException, Response
-from fastapi.middleware.cors import CORSMiddleware
-import httpx
-import os
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
+@app.get("/get-token")
 def get_token():
     # Usa las credenciales OAuth 2.0 configuradas en las variables de entorno
     gis = GIS("https://www.arcgis.com", client_id=os.getenv("OAUTH_CLIENT_ID"), client_secret=os.getenv("OAUTH_CLIENT_SECRET"))
@@ -40,35 +42,7 @@ def get_token():
     # a veces es `gis._con.token` o mediante un método específico.
     token = gis._con.token  # Asegúrate de revisar la documentación
     return {"token": token}
-ARCGIS_EXPERIENCE_URL = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d"
 
-
-
-@app.get("/map-proxy")
-async def map_proxy(request: Request):
-    
-    # Recolecta los query parameters, si los hubiera, para pasarlos al servicio
-    query_params = dict(request.query_params)
-    
-    # Configura el header con el token
-    token_value = get_token()["token"]
-    headers = {"Authorization": f"Bearer {token_value}"}
-
-    
-    async with httpx.AsyncClient() as client:
-        try:
-            resp = await client.get(ARCGIS_EXPERIENCE_URL, params=query_params, headers=headers)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error al contactar ArcGIS: {str(e)}")
-    
-    # Retorna la respuesta con el mismo tipo de contenido
-    content_type = resp.headers.get("content-type", "text/html")
-    return Response(content=resp.content, media_type=content_type)
-
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 def df_to_features(df):
     features_to_be_added = []
