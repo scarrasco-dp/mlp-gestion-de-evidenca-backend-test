@@ -1,10 +1,9 @@
-from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter, Response
+from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app_config import get_firebase_user_from_token
 from arcgis.gis import GIS
 from arcgis.geometry import Point
 
-import firebase_admin
 import uvicorn
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
@@ -34,14 +33,31 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=port)
 
-@app.get("/get-token")
 def get_token():
     # Usa las credenciales OAuth 2.0 configuradas en las variables de entorno
     gis = GIS("https://www.arcgis.com", client_id=os.getenv("OAUTH_CLIENT_ID"), client_secret=os.getenv("OAUTH_CLIENT_SECRET"))
-    # Obtén el token; la forma de obtenerlo puede variar según la biblioteca,
-    # a veces es `gis._con.token` o mediante un método específico.
     token = gis._con.token  # Asegúrate de revisar la documentación
-    return {"token": token}
+    return token
+
+@app.get("/map-proxy")
+def map_proxy(request: Request):
+    # Extraer los query params que se hayan pasado
+    params = dict(request.query_params)
+    token = get_token()
+    # Configurar el header de autorización
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    # Realizar la solicitud GET usando requests
+    response = requests.get("https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d"
+, params=params, headers=headers)
+    
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+    
+    # Devolver el contenido con el mismo tipo de contenido que recibió
+    return Response(content=response.content, media_type=response.headers.get("content-type"))
+
+
 
 
 def df_to_features(df):
