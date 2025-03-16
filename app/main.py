@@ -29,9 +29,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 def get_token():
     # Usa las credenciales OAuth 2.0 configuradas en las variables de entorno
