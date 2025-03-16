@@ -48,14 +48,21 @@ def map_proxy(request: Request):
     headers = {"Authorization": f"Bearer {token}"}
     
     # Realizar la solicitud GET usando requests
-    response = requests.get("https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d"
-, params=params, headers=headers)
+    response = requests.get("https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d", params=params, headers=headers)
     
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=response.text)
-    
+    content_type = response.headers.get("content-type", "")
+    content = response.content
+
+    # Si el contenido es HTML, reescribe el <base> para que las rutas relativas apunten al dominio correcto
+    if "text/html" in content_type:
+        text = content.decode("utf-8")
+        # Reemplaza <base href="/cdn/2978/experience/ con <base href="https://experience.arcgis.com/cdn/2978/experience/
+        text = text.replace('<base href="/cdn/2978/', '<base href="https://experience.arcgis.com/cdn/2978/')
+        content = text.encode("utf-8")
     # Devolver el contenido con el mismo tipo de contenido que recibió
-    return Response(content=response.content, media_type=response.headers.get("content-type"))
+    return Response(content=content, media_type=content_type)
 
 
 
