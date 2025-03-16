@@ -1,9 +1,9 @@
-from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter, Response
+from fastapi import FastAPI, UploadFile, Request, Depends, HTTPException, APIRouter, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app_config import get_firebase_user_from_token
 from arcgis.gis import GIS
 from arcgis.geometry import Point
-
+import httpx
 import firebase_admin
 import uvicorn
 from dotenv import load_dotenv
@@ -34,15 +34,30 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=port)
 
-@app.get("/get-token")
-def get_token():
-    # Usa las credenciales OAuth 2.0 configuradas en las variables de entorno
-    gis = GIS("https://www.arcgis.com", client_id=os.getenv("OAUTH_CLIENT_ID"), client_secret=os.getenv("OAUTH_CLIENT_SECRET"))
-    # Obtén el token; la forma de obtenerlo puede variar según la biblioteca,
-    # a veces es `gis._con.token` o mediante un método específico.
-    token = gis._con.token  # Asegúrate de revisar la documentación
-    return {"token": token}
+# URL de la experiencia de ArcGIS
+ARCGIS_EXPERIENCE_URL = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d"
 
+@app.get("/map-proxy")
+async def map_proxy(request: Request):
+    # Para pruebas, usamos un token fijo. En producción, obtén el token de forma segura.
+    token = "AAPT3NKHt6i2urmWtqOuugvr9U2lE3-yeJrZYBDR8pkFARHGtVl7JEmBWiqRYIJsN7PqtOWXRyZySCSxGyxMhH9zSHqE-wYNr7CUvwI7_oJZtU9l77VVApP5JvPGhM-nMAL2D8cETdDfis-YDpKHraxD2MaQVp3JBVTzDqU6v2QIk4LkOs_uElZloTh3SWPd-jrcjD713POi0Q0P0goOrHPz9PEe6QSCJGJVaukc0crk74p8xL2i5e-9ny0q-e6kDF3_rm1DpjnejKkTKrfZXIR23MColsePoCTeB8ecbvgn-eo"
+    
+    # Extrae los query parameters que venga en la solicitud original
+    params = dict(request.query_params)
+    
+    # Configura el header de autorización
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    # Realiza la solicitud al servicio de ArcGIS usando httpx
+    async with httpx.AsyncClient() as client:
+        response = await client.get(ARCGIS_EXPERIENCE_URL, params=params, headers=headers)
+    
+    # Si la respuesta no es exitosa, lanza un error
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail="Error proxying the request")
+    
+    # Retorna el contenido del servicio, preservando el tipo de contenido
+    return Response(content=response.content, media_type=response.headers.get("content-type"))
 
 def df_to_features(df):
     features_to_be_added = []
