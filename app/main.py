@@ -21,6 +21,14 @@ app = FastAPI()
 router = APIRouter() 
 load_dotenv(".env")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://dev-mlp-gestion-de-evidencia-preview.vercel.app"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     import uvicorn
