@@ -20,100 +20,20 @@ import re
 app = FastAPI()
 router = APIRouter() 
 load_dotenv(".env")
-origins = [os.getenv("FRONTEND_URL", "*")]
-origins = [
-    "https://dev-mlp-gestion-de-evidencia-preview.vercel.app",
-    "http://localhost:3000"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,  # Ahora incluye localhost
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-firebase_admin.initialize_app()
-load_dotenv(".env")
-
-# Configuración para OAuth 2.0 Client Credentials
-CLIENT_ID = os.getenv("ARCGIS_CLIENT_ID", "YaPnrAFP4tvZogSu")
-CLIENT_SECRET = os.getenv("ARCGIS_CLIENT_SECRET", "f2d55ee0da364a6fa984c3ce31ba5a05")
-TARGET_URL = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/"
-def get_access_token():
-    token_url = "https://www.arcgis.com/sharing/rest/oauth2/token"
-    params = {
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "grant_type": "client_credentials",  # Flujo Client Credentials
-        "f": "json"
-    }
-    response = requests.post(token_url, data=params)
-    if response.ok:
-        token_data = response.json()
-        access_token = token_data.get("access_token")
-        if not access_token:
-            raise Exception("Token de acceso no recibido")
-        return access_token
-    else:
-        raise Exception("Error al obtener el token de acceso")
-
-@app.get("/arcgis/token")
-def arcgis_token():
-    try:
-        token = get_access_token()
-        return {"access_token": token}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=port)
 
-
-
-# Sesión global para mantener la autenticación
-session = requests.Session()
-
-def login_arcgis():
-    login_url = "https://experience.arcgis.com/login"  # AJUSTA esta URL según la API real
-    payload = {
-        "username": "invitado@dp.com",
-        "password": "qwerty.123"
-    }
-    resp = session.post(login_url, data=payload)
-    if resp.ok:
-        print("¡Login exitoso, la fiesta ya comenzó!")
-    else:
-        raise Exception("Error en el login: " + resp.text)
-
-@app.on_event("startup")
-def startup_event():
-    try:
-        login_arcgis()
-    except Exception as e:
-        print(f"Error al iniciar sesión: {e}")
-
-@app.get("/map-proxy")
-def proxy_map():
-    target_url = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/"
-    try:
-        r = session.get(target_url)
-        content_type = r.headers.get("Content-Type", "text/html")
-        
-        # Si es HTML, inyectamos la etiqueta <base> para redirigir las rutas relativas
-        if "text/html" in content_type:
-            html = r.text
-            if "<head>" in html:
-                # Inyecta la etiqueta <base> justo después de <head>
-                base_tag = '<base href="https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/">'
-                html = html.replace("<head>", f"<head>{base_tag}", 1)
-            return Response(content=html, media_type="text/html")
-        else:
-            return Response(content=r.content, media_type=content_type)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/get-token")
+def get_token():
+    # Usa las credenciales OAuth 2.0 configuradas en las variables de entorno
+    gis = GIS("https://www.arcgis.com", client_id=os.getenv("OAUTH_CLIENT_ID"), client_secret=os.getenv("OAUTH_CLIENT_SECRET"))
+    # Obtén el token; la forma de obtenerlo puede variar según la biblioteca,
+    # a veces es `gis._con.token` o mediante un método específico.
+    token = gis._con.token  # Asegúrate de revisar la documentación
+    return {"token": token}
 
 
 def df_to_features(df):
