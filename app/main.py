@@ -1,9 +1,9 @@
-from fastapi import FastAPI, UploadFile, Request, Depends, HTTPException, APIRouter, Response
+from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app_config import get_firebase_user_from_token
 from arcgis.gis import GIS
 from arcgis.geometry import Point
-import httpx
+
 import firebase_admin
 import uvicorn
 from dotenv import load_dotenv
@@ -15,7 +15,7 @@ import pandas as pd
 import requests
 import holidays
 import re
-
+import httpx
 
 app = FastAPI()
 router = APIRouter() 
@@ -31,16 +31,22 @@ app.add_middleware(
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=port)
 
-# URL de la experiencia de ArcGIS
-ARCGIS_EXPERIENCE_URL = "https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d"
+def get_token():
+    # Usa las credenciales OAuth 2.0 configuradas en las variables de entorno
+    gis = GIS("https://www.arcgis.com", client_id=os.getenv("OAUTH_CLIENT_ID"), client_secret=os.getenv("OAUTH_CLIENT_SECRET"))
+    # Obtén el token; la forma de obtenerlo puede variar según la biblioteca,
+    # a veces es `gis._con.token` o mediante un método específico.
+    token = gis._con.token  # Asegúrate de revisar la documentación
+    return {"token": token}
 
 @app.get("/map-proxy")
 async def map_proxy(request: Request):
     # Para pruebas, usamos un token fijo. En producción, obtén el token de forma segura.
-    token = "AAPT3NKHt6i2urmWtqOuugvr9U2lE3-yeJrZYBDR8pkFARHGtVl7JEmBWiqRYIJsN7PqtOWXRyZySCSxGyxMhH9zSHqE-wYNr7CUvwI7_oJZtU9l77VVApP5JvPGhM-nMAL2D8cETdDfis-YDpKHraxD2MaQVp3JBVTzDqU6v2QIk4LkOs_uElZloTh3SWPd-jrcjD713POi0Q0P0goOrHPz9PEe6QSCJGJVaukc0crk74p8xL2i5e-9ny0q-e6kDF3_rm1DpjnejKkTKrfZXIR23MColsePoCTeB8ecbvgn-eo"
+    token_data = get_token()
+    token = token_data["token"]
+
     
     # Extrae los query parameters que venga en la solicitud original
     params = dict(request.query_params)
@@ -50,7 +56,7 @@ async def map_proxy(request: Request):
     
     # Realiza la solicitud al servicio de ArcGIS usando httpx
     async with httpx.AsyncClient() as client:
-        response = await client.get(ARCGIS_EXPERIENCE_URL, params=params, headers=headers)
+        response = await client.get("https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d", params=params, headers=headers)
     
     # Si la respuesta no es exitosa, lanza un error
     if response.status_code != 200:
