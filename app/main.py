@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
 def get_token():
     # Usa las credenciales OAuth 2.0 configuradas en las variables de entorno
-    gis = GIS("https://www.arcgis.com", client_id=os.getenv("OAUTH_CLIENT_ID"), client_secret=os.getenv("OAUTH_CLIENT_SECRET"))
+    gis = GIS("https://www.arcgis.com", client_id="YaPnrAFP4tvZogSu", client_secret="f2d55ee0da364a6fa984c3ce31ba5a05")
     token = gis._con.token  # Asegúrate de revisar la documentación
     return token
 
@@ -55,13 +55,23 @@ def map_proxy(request: Request):
     content_type = response.headers.get("content-type", "")
     content = response.content
 
-    # Si el contenido es HTML, reescribe el <base> para que las rutas relativas apunten al dominio correcto
+    # Si el contenido es HTML, reescribe las rutas
     if "text/html" in content_type:
         text = content.decode("utf-8")
-        # Reemplaza <base href="/cdn/2978/experience/ con <base href="https://experience.arcgis.com/cdn/2978/experience/
-        text = text.replace('<base href="/cdn/2978/', '<base href="https://experience.arcgis.com/cdn/2978/')
+        # Reemplaza el atributo <base> para que apunte al dominio correcto
+        text = re.sub(
+            r'<base href="\/cdn\/(.*?)"',
+            r'<base href="https://experience.arcgis.com/cdn/\1"',
+            text
+        )
+        # Reemplaza las referencias src y href que comienzan con /cdn/ para que apunten al dominio original
+        text = re.sub(
+            r'(src|href)="\/cdn\/',
+            r'\1="https://experience.arcgis.com/cdn/',
+            text
+        )
         content = text.encode("utf-8")
-    # Devolver el contenido con el mismo tipo de contenido que recibió
+    
     return Response(content=content, media_type=content_type)
 
 
