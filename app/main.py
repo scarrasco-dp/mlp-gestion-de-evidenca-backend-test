@@ -77,14 +77,22 @@ def arcgis_cookie(response: Response):
     cookie = simulate_login()
     if not cookie:
         return {"error": "No se encontró la cookie 'esri_aopc'"}
+
+    # Si 'expires' es -1, indicamos que es una cookie de sesión (no establecemos expires)
+    expires = None if cookie.get("expires", -1) == -1 else cookie["expires"]
+
     response.set_cookie(
-        key="esri_aopc",
-        value=cookie,
-        httponly=False,
-        secure=True,
-        max_age=7200
+        key=cookie["name"],
+        value=cookie["value"],
+        domain=cookie.get("domain"),
+        path=cookie.get("path", "/"),
+        expires=expires,
+        secure=cookie.get("secure", False),
+        httponly=cookie.get("httpOnly", False),
+        samesite=cookie.get("sameSite", "lax").capitalize()  # FastAPI espera "Lax", "Strict" o "None"
     )
-    return {"message": "Cookie servida correctamente", "cookie": cookie}
+    return {"message": "Cookie establecida correctamente"}
+
 
 @app.get("/")
 def read_root():
