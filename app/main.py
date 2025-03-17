@@ -41,7 +41,8 @@ def get_token():
     # Obtén el token; la forma de obtenerlo puede variar según la biblioteca,
     # a veces es `gis._con.token` o mediante un método específico.
     token = gis._con.token  # Asegúrate de revisar la documentación
-    return {token}
+    return {"token": token}
+
 
 
 def df_to_features(df):
