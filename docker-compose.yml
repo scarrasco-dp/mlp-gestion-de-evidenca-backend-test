@@ -4,8 +4,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      # Si no necesitas argumentos de build, elimina la línea args o déjala como un mapping vacío:
-      # args: {}
     ports:
       - "8000:8000"
     volumes:
@@ -13,4 +11,15 @@ services:
     environment:
       - OAUTH_CLIENT_ID=tu_client_id
       - OAUTH_CLIENT_SECRET=tu_client_secret
+      - SELENIUM_MANAGER=0
+    depends_on:
+      - selenium
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    shm_size: '1g'
+    platform: linux/amd64  # Si usas Mac con M1/M2, es útil
+
+  selenium:
+    image: selenium/standalone-chrome:114.0
+    ports:
+      - "4444:4444"
+    shm_size: '2g'

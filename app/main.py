@@ -1,10 +1,9 @@
-from fastapi import FastAPI, UploadFile, Depends, HTTPException, APIRouter, Response
+from fastapi import FastAPI, Request, Response, HTTPException, UploadFile, Depends, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from app_config import get_firebase_user_from_token
 from arcgis.gis import GIS
 from arcgis.geometry import Point
 from bs4 import BeautifulSoup
-import firebase_admin
 import uvicorn
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
@@ -15,10 +14,21 @@ import pandas as pd
 import requests
 import holidays
 import re
-
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+import time
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import zipfile
+import stat
+import chromedriver_autoinstaller
+from playwright.sync_api import sync_playwright
 
 app = FastAPI()
-router = APIRouter() 
+router = APIRouter()
 load_dotenv(".env")
 
 app.add_middleware(
@@ -29,76 +39,56 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+def simulate_login():
+    with sync_playwright() as p:
+        # Lanzamos el navegador en modo headless
+        browser = p.chromium.launch(headless=True)
+        # Creamos un contexto (para gestionar cookies, etc.)
+        context = browser.new_context()
+        page = context.new_page()
+        
+        # URL de autenticación (actualiza según tu configuración)
+        url = "https://www.arcgis.com/sharing/rest/oauth2/authorize?client_id=experienceBuilder&response_type=code&expiration=20160&redirect_uri=https://experience.arcgis.com/cdn/2978/jimu-core/oauth-callback.html?clientId%3DexperienceBuilder%26portal%3Dhttps://www.arcgis.com/sharing/rest%26popup%3Dfalse%26isInPortal%3Dfalse%26isDevEdition%3Dfalse%26isOutOfExb%3Dfalse%26mountPath%3D/%26enablePkce%3Dtrue%26fromUrl%3Dhttps%253A%252F%252Fexperience.arcgis.com%252Fexperience%252F3f2cb0aff56340c48cd79846f56f365d%252F%26redirectUri%3Dhttps%253A%252F%252Fexperience.arcgis.com%252Fcdn%252F2978%252Fjimu-core%252Foauth-callback.html%253FclientId%253DexperienceBuilder%2526portal%253Dhttps%253A%252F%252Fwww.arcgis.com%252Fsharing%252Frest%2526popup%253Dfalse%2526isInPortal%253Dfalse%2526isDevEdition%253Dfalse%2526isOutOfExb%253Dfalse%2526mountPath%253D%252F%2526enablePkce%253Dtrue%2526fromUrl%253Dhttps%25253A%25252F%25252Fexperience.arcgis.com%25252Fexperience%25252F3f2cb0aff56340c48cd79846f56f365d%25252F&state=%7B%22id%22:%22NYKo6EzQ-wZBnMSpyi6CoVgNoxIw4acAudg4VZH_hUU%22,%22originalUrl%22:%22https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/%22%7D&locale=&style=&code_challenge_method=S256&code_challenge=fszem4HTAWk9h812lOaOTvFop1cehvkBx2GZKY8Mkxo&showSignupOption=true&signupType=esri&force_login=false"
+        page.goto(url)
+        
+        # Completa los campos de usuario y contraseña
+        page.fill("#user_username", "invitado@dp.com")
+        page.fill("#user_password", "qwerty.123")
+        
+        # Haz clic en el botón de iniciar sesión
+        page.click("#signIn")
+        
+        # Espera para que se procese el login (ajusta el tiempo si es necesario)
+        page.wait_for_timeout(2000)
+        
+        # Extrae la cookie 'esri_aopc'
+        cookies = context.cookies()
+        cookie_value = None
+        for cookie in cookies:
+            if cookie.get("name") == "esri_aopc":
+                cookie_value = cookie.get("value")
+                break
+        
+        browser.close()
+        return cookie_value
 
-@app.get("/get-token")
-def get_token_endpoint():
-    url = "https://www.arcgis.com/sharing/rest/oauth2/token"
-    payload = {
-        "grant_type": "client_credentials",
-        "client_id": "YaPnrAFP4tvZogSu",
-        "client_secret": "f2d55ee0da364a6fa984c3ce31ba5a05",
-        "f": "json"
-    }
-    
-    try:
-        response = requests.post(url, data=payload)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al conectar con ArcGIS: {e}")
-    
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
-    
-    data = response.json()
-    if "access_token" not in data:
-        raise HTTPException(status_code=500, detail="Token no encontrado en la respuesta: " + str(data))
-    
-    return {"token": data["access_token"]}
-
-
-def df_to_features(df):
-    features_to_be_added = []
-    for row in df.iterrows():
-        data = row[1]
-        attributes = {
-            'iniciativa': data['iniciativa'],
-            'llave': data['llave'],
-            'ano': int(data['ano']),
-            'localidad': data['localidad'],
-            'estado': data['estado'],
-        }
-        if str(data['familia_iniciativa']) != "nan":
-            attributes['familia_iniciativa'] = data['familia_iniciativa']
-        if str(data['tipo_iniciativa']) != "nan":
-            attributes['tipo_iniciativa'] = data['tipo_iniciativa']
-        if str(data['fase']) != "nan":
-            attributes['fase'] = data['fase']
-        if str(data['costo_total_usd']) != "nan":
-            attributes['costo_total_usd'] = float(data['costo_total_usd'].replace(",", "."))
-        if str(data['FCT']) != "nan":
-            attributes['FCT'] = data['FCT']
-        if str(data['SOLPED']) != "nan":
-            attributes['SOLPED'] = data['SOLPED']
-
-        new_feature = {
-            "attributes": attributes
-        }
-
-        if 'Coor_x' in data.index:
-            point = Point([data['Coor_x'], data['Coor_y']])
-            new_feature['geometry'] = point
-
-        features_to_be_added.append(new_feature)
-
-    return features_to_be_added
+@app.get("/arcgis-cookie")
+def arcgis_cookie(response: Response):
+    cookie = simulate_login()
+    if not cookie:
+        return {"error": "No se encontró la cookie 'esri_aopc'"}
+    response.set_cookie(
+        key="esri_aopc",
+        value=cookie,
+        httponly=False,
+        secure=True,
+        max_age=7200
+    )
+    return {"message": "Cookie servida correctamente", "cookie": cookie}
 
 @app.get("/")
 def read_root():
     return {"message": "Hello World FastAPI"}
-
 
 @app.post("/")
 async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_from_token)):
@@ -107,18 +97,18 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
     contents = io.BytesIO(await file.read())
     dfI = pd.read_excel(contents, sheet_name="aapp_amsa_1_iniciativas")
     dfH = pd.read_excel(contents, sheet_name="aapp_amsa_1_hitos")
-
+    
     dfH['peso'] = dfH['peso'].str.replace(',', '.').astype(float)
     dfH['peso_ac'] = dfH['peso_ac'].str.replace(',', '.').astype(float)
     dfH['fecha_plan'] = pd.to_datetime(dfH['fecha_plan'])
     dfH['fecha_real'] = pd.to_datetime(dfH['fecha_real'])
     dfH['cumplimiento_plan'] = (dfH['fecha_plan'] < today)
     dfH['cumplimiento_real'] = (dfH['fecha_real'] < today) & (dfH['estado_avance'] == "COMPLETADO")
-
+    
     dfI = dfI[(dfI['gerencia'] == "Minera Los Pelambres") &
               (dfI['esponsor'] == "GAAPP GMLP") & (dfI['estado'] != "ELIMINADO")]
     dfH = dfH[dfH['parent'].isin(dfI['llave'])]
-
+    
     dfResumen = dfI[['iniciativa', 'llave', 'ano', 'familia_iniciativa', 'tipo_iniciativa',
                      'localidad', 'fase', 'estado', 'costo_total_usd', 'FCT', 'SOLPED']]
     
@@ -135,19 +125,19 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
         else:
             real = 0
         return abs(plan - real)
-
+    
     dfH_delta = dfH.groupby('parent').apply(delta).reset_index(name='delta')
     dfH_delta = dfH_delta.rename(columns={'parent': 'llave'})
     dfResumen = dfResumen.merge(dfH_delta, on='llave', how='left')
-
+    
     with open('localitiesX.json', 'r') as f:
         dictLocalitiesX = json.loads(f.read())
     with open('localitiesY.json', 'r') as f:
         dictLocalitiesY = json.loads(f.read())
-
+    
     dfResumen.insert(len(dfResumen.columns), 'Coor_x', dfResumen['localidad'].map(dictLocalitiesX))
     dfResumen.insert(len(dfResumen.columns), 'Coor_y', dfResumen['localidad'].map(dictLocalitiesY))
-
+    
     dfResumenNoGeo = dfResumen[dfResumen['Coor_x'].isna()]
     dfResumenGeo = dfResumen.dropna(subset=['Coor_x'])
     item = gis.content.get("d462a6d805354d62a37fc6210c75664d")
@@ -163,7 +153,7 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
     table_new_features = df_to_features(dfToTable)
     table.delete_features(where="OBJECTID > 0")
     table.edit_features(adds=table_new_features)
-
+    
     return 'ok'
 
 chilean_holidays = holidays.CL()
@@ -180,7 +170,7 @@ def get_currencies(year: int = None):
     ini_response = requests.post(url)
     soup = BeautifulSoup(ini_response.text, 'html.parser')
     view_state = soup.find('input', {'id': '__VIEWSTATE'})['value']
-
+    
     try:
         if year is not None:
             yearDate = datetime(year, 1, 5)
@@ -200,3 +190,7 @@ def get_currencies(year: int = None):
         return {"CLP": 1, "USD": usd, "EUR": eur, "UF": uf}
     except Exception as _:
         return HTTPException(status_code=500, detail="Scraper failed")
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
