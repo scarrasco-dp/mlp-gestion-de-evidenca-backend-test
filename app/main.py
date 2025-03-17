@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app_config import get_firebase_user_from_token
 from arcgis.gis import GIS
 from arcgis.geometry import Point
-
+from bs4 import BeautifulSoup
 import firebase_admin
 import uvicorn
 from dotenv import load_dotenv
@@ -23,7 +23,7 @@ load_dotenv(".env")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://dev-mlp-gestion-de-evidencia-preview.vercel.app"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
