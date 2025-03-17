@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Si no necesitas argumentos de build, elimina la línea args o déjala como un mapping vacío:
+      # args: {}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app
+    environment:
+      - OAUTH_CLIENT_ID=tu_client_id
+      - OAUTH_CLIENT_SECRET=tu_client_secret
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload

@@ -35,14 +35,28 @@ if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 @app.get("/get-token")
-def get_token():
-    # Usa las credenciales OAuth 2.0 configuradas en las variables de entorno
-    gis = GIS("https://www.arcgis.com", client_id="YaPnrAFP4tvZogSu", client_secret="f2d55ee0da364a6fa984c3ce31ba5a05")
-    # Obtén el token; la forma de obtenerlo puede variar según la biblioteca,
-    # a veces es `gis._con.token` o mediante un método específico.
-    token = gis._con.token  # Asegúrate de revisar la documentación
-    return {"token": token}
-
+def get_token_endpoint():
+    url = "https://www.arcgis.com/sharing/rest/oauth2/token"
+    payload = {
+        "grant_type": "client_credentials",
+        "client_id": "YaPnrAFP4tvZogSu",
+        "client_secret": "f2d55ee0da364a6fa984c3ce31ba5a05",
+        "f": "json"
+    }
+    
+    try:
+        response = requests.post(url, data=payload)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al conectar con ArcGIS: {e}")
+    
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+    
+    data = response.json()
+    if "access_token" not in data:
+        raise HTTPException(status_code=500, detail="Token no encontrado en la respuesta: " + str(data))
+    
+    return {"token": data["access_token"]}
 
 
 def df_to_features(df):
