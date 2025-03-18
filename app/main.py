@@ -41,57 +41,75 @@ app.add_middleware(
 
 def simulate_login():
     with sync_playwright() as p:
-        # Lanzamos el navegador en modo headless
         browser = p.chromium.launch(headless=True)
-        # Creamos un contexto (para gestionar cookies, etc.)
         context = browser.new_context()
         page = context.new_page()
         
-        # URL de autenticación (actualiza según tu configuración)
         url = "https://www.arcgis.com/sharing/rest/oauth2/authorize?client_id=experienceBuilder&response_type=code&expiration=20160&redirect_uri=https://experience.arcgis.com/cdn/2978/jimu-core/oauth-callback.html?clientId%3DexperienceBuilder%26portal%3Dhttps://www.arcgis.com/sharing/rest%26popup%3Dfalse%26isInPortal%3Dfalse%26isDevEdition%3Dfalse%26isOutOfExb%3Dfalse%26mountPath%3D/%26enablePkce%3Dtrue%26fromUrl%3Dhttps%253A%252F%252Fexperience.arcgis.com%252Fexperience%252F3f2cb0aff56340c48cd79846f56f365d%252F%26redirectUri%3Dhttps%253A%252F%252Fexperience.arcgis.com%252Fcdn%252F2978%252Fjimu-core%252Foauth-callback.html%253FclientId%253DexperienceBuilder%2526portal%253Dhttps%253A%252F%252Fwww.arcgis.com%252Fsharing%252Frest%2526popup%253Dfalse%2526isInPortal%253Dfalse%2526isDevEdition%253Dfalse%2526isOutOfExb%253Dfalse%2526mountPath%253D%252F%2526enablePkce%253Dtrue%2526fromUrl%253Dhttps%25253A%25252F%25252Fexperience.arcgis.com%25252Fexperience%25252F3f2cb0aff56340c48cd79846f56f365d%25252F&state=%7B%22id%22:%22NYKo6EzQ-wZBnMSpyi6CoVgNoxIw4acAudg4VZH_hUU%22,%22originalUrl%22:%22https://experience.arcgis.com/experience/3f2cb0aff56340c48cd79846f56f365d/%22%7D&locale=&style=&code_challenge_method=S256&code_challenge=fszem4HTAWk9h812lOaOTvFop1cehvkBx2GZKY8Mkxo&showSignupOption=true&signupType=esri&force_login=false"
         page.goto(url)
         
-        # Completa los campos de usuario y contraseña
         page.fill("#user_username", "invitado@dp.com")
         page.fill("#user_password", "qwerty.123")
         
-        # Haz clic en el botón de iniciar sesión
         page.click("#signIn")
         
-        # Espera para que se procese el login (ajusta el tiempo si es necesario)
         page.wait_for_timeout(2000)
         
-        # Extrae la cookie 'esri_aopc'
         cookies = context.cookies()
-        cookie_value = None
         for cookie in cookies:
             if cookie.get("name") == "esri_aopc":
-                cookie_value = cookie.get("value")
-                break
+                browser.close()
+                return cookie
         
         browser.close()
-        return cookie_value
+        return None
+
+
+import os
+from fastapi import FastAPI, Response
+
+app = FastAPI()
+
+def simulate_login():
+    # Simulación de login que retorna la cookie como dict
+    return {
+        'name': 'esri_aopc',
+        'value': 'atl0xglO3YdtZSBFKGrL3uA..oVvRgLDTejVlfWU0TcjXRXd7FKh5ZX1fXMfTMN71R2x_xWP-Oj3cV-bfivkCmU94IJlWct_iXP3imluYVFuG-axCKXrpec4X1dGtYP2mQRjswD4spGyK-osVFSh_Hb440wWfntIwQuGux-klfPmE7iW-Tsn61bAvA7Jzl-fA67b3dwPQgXbSwLRHU-DflaZa48_C-ulz60kZ7KX-2RL1b9eDnZY1WjmzyesVkpVk3nnkC-4luAS5h4ylezvjk-8LJ88OILWaq8nTeBH-MZiFnSIXGLBd5RHnisjtiqqUotQaDUnJ',
+        'domain': '.arcgis.com',  # Ajusta este valor en producción
+        'path': '/',
+        'expires': -1,
+        'httpOnly': True,
+        'secure': True,
+        'sameSite': 'Lax'
+    }
 
 @app.get("/arcgis-cookie")
 def arcgis_cookie(response: Response):
     cookie = simulate_login()
     if not cookie:
         return {"error": "No se encontró la cookie 'esri_aopc'"}
-
-    # Si 'expires' es -1, indicamos que es una cookie de sesión (no establecemos expires)
+    
+    # Determina el entorno
+    environment = os.getenv("ENVIRONMENT", "development")
+    
+    # En desarrollo, usaremos localhost y no forzamos el atributo domain ni secure
+    domain = cookie.get("domain") if environment != "development" else None
+    secure = cookie.get("secure", False) if environment == "development" else cookie.get("secure", False)
+    
     expires = None if cookie.get("expires", -1) == -1 else cookie["expires"]
 
     response.set_cookie(
         key=cookie["name"],
         value=cookie["value"],
-        domain=cookie.get("domain"),
-        path=cookie.get("path", "/"),
+        domain=domain,
+        path=cookie.get("path", "/"),  # Global, disponible en todas las rutas
         expires=expires,
-        secure=cookie.get("secure", False),
+        secure=secure,
         httponly=cookie.get("httpOnly", False),
-        samesite=cookie.get("sameSite", "lax").capitalize()  # FastAPI espera "Lax", "Strict" o "None"
+        samesite=cookie.get("sameSite", "lax").capitalize()
     )
     return {"message": "Cookie establecida correctamente"}
+
 
 
 @app.get("/")
