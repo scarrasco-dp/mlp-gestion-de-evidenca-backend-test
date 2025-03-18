@@ -33,11 +33,16 @@ load_dotenv(".env")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://dev-mlp-gestion-de-evidencia-preview.vercel.app/",  # Reemplaza por tu dominio de Vercel
+        "http://localhost:3000",
+        "http://localhost:8000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 def simulate_login():
     with sync_playwright() as p:
