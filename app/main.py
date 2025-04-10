@@ -141,7 +141,7 @@ async def read_root(file: UploadFile, token: dict = Depends(get_firebase_user_fr
     dfH = dfH[dfH['parent'].isin(dfI['llave'])]
     
     dfResumen = dfI[['iniciativa', 'llave', 'ano', 'familia_iniciativa', 'tipo_iniciativa',
-                     'localidad', 'fase', 'estado', 'costo_total_usd', 'FCT', 'SOLPED']]
+                     'localidad', 'fase', 'estado', 'costo_total_usd', 'FCT', 'SOLPED', 'area_prioritaria']]
     
     def delta(sub_df):
         sub_df = sub_df[sub_df['linea_gestion'] == "Físico"]
